@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+evidence/
+.idea/
+.vscode/
+venv/
+.venv/
+env/
+yolov8n.pt
