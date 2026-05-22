@@ -17,9 +17,15 @@ def _parse_int_list(value: str) -> list[int]:
 @dataclass(slots=True)
 class Settings:
     camera_source: str
+    prompt_camera_selection: bool
+    camera_scan_limit: int
     model_path: str
     confidence_threshold: float
     tracked_classes: list[int] | None
+    enabled_events: list[str]
+    fight_motion_threshold: float
+    fight_frames_required: int
+    crowd_person_threshold: int
     window_name: str
     save_evidence: bool
     evidence_dir: str
@@ -29,15 +35,22 @@ class Settings:
     def from_env(cls) -> "Settings":
         raw_classes = os.getenv("YOLO_CLASSES", "0").strip()
         tracked_classes = _parse_int_list(raw_classes) if raw_classes else None
+        raw_events = os.getenv("ENABLED_EVENTS", "fight,crowd,fallen_person").strip()
+        enabled_events = [item.strip() for item in raw_events.split(",") if item.strip()]
 
         return cls(
             camera_source=os.getenv("CAMERA_SOURCE", "0"),
+            prompt_camera_selection=os.getenv("PROMPT_CAMERA_SELECTION", "true").lower() == "true",
+            camera_scan_limit=int(os.getenv("CAMERA_SCAN_LIMIT", "5")),
             model_path=os.getenv("MODEL_PATH", "yolov8n.pt"),
             confidence_threshold=float(os.getenv("CONFIDENCE_THRESHOLD", "0.55")),
             tracked_classes=tracked_classes,
+            enabled_events=enabled_events,
+            fight_motion_threshold=float(os.getenv("FIGHT_MOTION_THRESHOLD", "18.0")),
+            fight_frames_required=int(os.getenv("FIGHT_FRAMES_REQUIRED", "6")),
+            crowd_person_threshold=int(os.getenv("CROWD_PERSON_THRESHOLD", "6")),
             window_name=os.getenv("WINDOW_NAME", "IA Vigilancia - Deteccion"),
             save_evidence=os.getenv("SAVE_EVIDENCE", "true").lower() == "true",
             evidence_dir=os.getenv("EVIDENCE_DIR", "evidence"),
             evidence_cooldown_seconds=int(os.getenv("EVIDENCE_COOLDOWN_SECONDS", "10")),
         )
-
