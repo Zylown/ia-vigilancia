@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
+import torch
+
+os.environ.setdefault("MPLCONFIGDIR", str(Path(".cache/matplotlib").resolve()))
+
 from ultralytics import YOLO
 
 
@@ -52,6 +57,8 @@ class YOLODetector:
         tracked_classes: list[int] | None,
         fight_model_path: str | None = None,
         fight_confidence_threshold: float | None = None,
+        inference_device: str = "auto",
+        image_size: int = 640,
     ) -> None:
         self.model = YOLO(model_path)
         self.confidence_threshold = confidence_threshold
@@ -60,6 +67,9 @@ class YOLODetector:
         self.fight_model = None
         self.fight_model_path = fight_model_path
         self.fight_confidence_threshold = fight_confidence_threshold or confidence_threshold
+        self.device = self._resolve_device(inference_device)
+        self.image_size = image_size
+        self.use_half_precision = self.device != "cpu"
 
         if fight_model_path:
             path = Path(fight_model_path)
@@ -73,6 +83,9 @@ class YOLODetector:
             source=frame,
             conf=self.confidence_threshold,
             classes=self.tracked_classes,
+            device=self.device,
+            imgsz=self.image_size,
+            half=self.use_half_precision,
             verbose=False,
         )
         result = results[0]
@@ -91,6 +104,9 @@ class YOLODetector:
             fight_results = self.fight_model.predict(
                 source=frame,
                 conf=self.fight_confidence_threshold,
+                device=self.device,
+                imgsz=self.image_size,
+                half=self.use_half_precision,
                 verbose=False,
             )
             fight_result = fight_results[0]
@@ -203,3 +219,9 @@ class YOLODetector:
         smaller_area = max(1, min(left.area, right.area))
 
         return intersection_area / smaller_area >= 0.55
+
+    def _resolve_device(self, requested_device: str) -> str:
+        normalized_device = requested_device.strip().lower()
+        if normalized_device == "auto":
+            return "0" if torch.cuda.is_available() else "cpu"
+        return requested_device

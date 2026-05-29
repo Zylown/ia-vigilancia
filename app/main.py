@@ -20,6 +20,8 @@ def main() -> None:
         tracked_classes=settings.tracked_classes,
         fight_model_path=settings.fight_model_path,
         fight_confidence_threshold=settings.fight_confidence_threshold,
+        inference_device=settings.inference_device,
+        image_size=settings.inference_image_size,
     )
     event_engine = EventEngine(
         enabled_events=settings.enabled_events,
@@ -38,7 +40,12 @@ def main() -> None:
         scan_limit=settings.camera_scan_limit,
     )
 
-    camera = open_camera(selected_camera.source)
+    camera = open_camera(
+        selected_camera.source,
+        width=settings.camera_width,
+        height=settings.camera_height,
+        fps=settings.camera_fps,
+    )
 
     print("Iniciando vigilancia inteligente...")
     print("Controles: enfoca la ventana de video y presiona 'q' o 'ESC' para salir.")

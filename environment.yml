@@ -6,3 +6,6 @@ dependencies:
       - opencv-python
       - python-dotenv
       - ultralytics
+      - fastapi
+      - uvicorn[standard]
+      - dill

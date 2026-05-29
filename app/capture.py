@@ -66,7 +66,7 @@ def choose_video_source(default_source: str, prompt_user: bool, scan_limit: int)
     return CameraOption(source=default_source, label=f"Fuente por defecto ({default_source})")
 
 
-def open_camera(source: str) -> cv2.VideoCapture:
+def open_camera(source: str, width: int | None = None, height: int | None = None, fps: int | None = None) -> cv2.VideoCapture:
     parsed_source = parse_camera_source(source)
     if isinstance(parsed_source, int):
         camera = cv2.VideoCapture(parsed_source, cv2.CAP_DSHOW)
@@ -78,5 +78,13 @@ def open_camera(source: str) -> cv2.VideoCapture:
             f"No se pudo abrir la fuente de video '{source}'. "
             "Verifica la camara, el indice o la URL del stream."
         )
+
+    if width is not None:
+        camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    if height is not None:
+        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    if fps is not None:
+        camera.set(cv2.CAP_PROP_FPS, fps)
+    camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
     return camera

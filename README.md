@@ -1,30 +1,51 @@
 # IA Vigilancia
 
-Prototipo inicial de videovigilancia inteligente para entorno universitario.
+Prototipo de videovigilancia inteligente para un entorno universitario.
 
-La idea de esta primera version es validar el flujo base:
+El objetivo del proyecto es analizar video en tiempo real mediante Inteligencia Artificial para detectar eventos de riesgo, guardar evidencia y preparar alertas para el area encargada de seguridad o SAE.
 
-- capturar video desde la laptop o un stream externo
-- detectar objetos con YOLO en tiempo real
-- priorizar personas por defecto para reducir ruido
-- guardar evidencia basica cuando se detecta actividad
-- preparar la base para futuras alertas a SAE y analisis de conductas
+Este repositorio es un avance funcional. Aun no representa un sistema final de seguridad, pero ya integra camara, deteccion con modelos YOLO, dashboard web y una primera estructura para eventos como peleas, aglomeraciones y persona caida.
+
+## Idea del proyecto
+
+El sistema busca transformar una camara tradicional en una fuente de analisis inteligente.
+
+Flujo general:
+
+```text
+Camara -> Backend Python -> Modelo IA -> Eventos -> Evidencia -> Dashboard web
+```
+
+En esta etapa se trabaja con:
+
+- webcam de laptop
+- Camo con iPhone
+- camaras virtuales
+- a futuro, camaras IP/RTSP de videovigilancia
 
 ## Estado actual
 
-Esta version no detecta peleas ni infracciones complejas todavia.
+Actualmente el sistema puede:
 
-Hoy el proyecto hace lo siguiente:
+- abrir una fuente de video
+- usar GPU NVIDIA si esta disponible
+- caer automaticamente a CPU si no hay GPU
+- detectar personas con YOLO
+- cargar un modelo local de peleas en `models/fight/best.pt`
+- guardar evidencia por evento
+- exponer una API con FastAPI
+- mostrar la camara en un dashboard Next.js
+- cambiar la camara desde el frontend
 
-- permite seleccionar la camara al iniciar
-- abre una fuente de video
-- ejecuta deteccion con YOLO
-- evalua eventos basicos por heuristica
-- muestra el video anotado en pantalla
-- guarda evidencia por carpeta de evento
-- permite salir con `q`, `ESC` o `Ctrl+C`
+Eventos activos por defecto:
 
-## Estructura
+- `fight`
+- `crowd`
+- `fallen_person`
+
+Importante: el modelo de pelea y las reglas actuales son un avance de prototipo. Para una version robusta se necesitan mas datos, pruebas y modelos temporales.
+
+## Estructura del proyecto
 
 ```text
 ia-vigilancia/
@@ -33,241 +54,321 @@ ia-vigilancia/
     capture.py
     config.py
     detector.py
-    event_engine.py
     event_catalog.py
+    event_engine.py
     main.py
+    server.py
+  dashboard/
+    app/
+    package.json
+  docs/
+    training-guide.md
+  models/
+    README.md
   .env.example
   .gitignore
-  README.md
+  environment.yml
   requirements.txt
 ```
 
-## Requisitos
+## Librerias principales
 
-- Windows con Anaconda o Miniconda
-- Python 3.10
-- Webcam o fuente de video
+Python:
 
-## Crear entorno
+- `opencv-python`: abre camaras, lee frames, dibuja cajas y codifica el stream de video.
+- `ultralytics`: permite usar modelos YOLO para deteccion de objetos y el modelo `best.pt`.
+- `torch`: ejecuta los modelos de IA en CPU o GPU NVIDIA.
+- `fastapi`: crea la API que conecta Python con el dashboard web.
+- `uvicorn`: servidor que levanta la API FastAPI.
+- `python-dotenv`: lee configuracion desde `.env`.
+- `dill`: requerido por algunos modelos YOLO descargados o entrenados para cargarse correctamente.
 
-Abre `Anaconda Prompt` dentro de la carpeta del proyecto y ejecuta:
+Frontend:
+
+- `Next.js`: framework web para construir el dashboard.
+- `React`: base de componentes de la interfaz.
+- `Tailwind CSS`: estilos rapidos y consistentes para el dashboard.
+- `Bun`: gestor y runtime usado para instalar dependencias y ejecutar el frontend.
+
+## Configuracion del entorno
+
+Desde la raiz del proyecto:
 
 ```powershell
-conda create -n ia-vigilancia python=3.10 -y
+cd C:\Users\Unknown\Documents\GitHub\ia-vigilancia
+.\venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Si se usa Anaconda:
+
+```powershell
+conda create -n ia-vigilancia python=3.11 -y
 conda activate ia-vigilancia
 pip install -r requirements.txt
 ```
 
-Tambien puedes crear el entorno directamente desde el archivo del proyecto:
+Crear `.env` a partir de `.env.example`:
 
 ```powershell
-conda env create -f environment.yml
-conda activate ia-vigilancia
+Copy-Item .env.example .env
 ```
 
-## Configuracion
+## Configuracion importante
 
-1. Copia `.env.example` como `.env`
-2. Ajusta los valores si hace falta
+El archivo `.env` controla camara, modelos y rendimiento.
 
-Variables importantes:
-
-- `CAMERA_SOURCE=0`: usa la webcam de la laptop
-- `PROMPT_CAMERA_SELECTION=true`: muestra selector de camara al iniciar
-- `CAMERA_SCAN_LIMIT=5`: cantidad de indices locales a escanear
-- `MODEL_PATH=yolov8n.pt`: ruta al modelo
-- `CONFIDENCE_THRESHOLD=0.55`: sube este valor si detecta demasiado "a lo loco"
-- `YOLO_CLASSES=0`: detecta solo personas. Dejalo vacio para detectar todas las clases generales del YOLO base
-- `FIGHT_MODEL_PATH=models/fight/best.pt`: modelo entrenado para detectar peleas. Dejalo vacio para desactivarlo
-- `FIGHT_CONFIDENCE_THRESHOLD=0.45`: confianza minima del modelo de peleas
-- `ENABLED_EVENTS=fight,crowd,fallen_person`: eventos basicos activos
-- `FIGHT_MOTION_THRESHOLD=18.0`: sensibilidad de movimiento para pelea
-- `FIGHT_FRAMES_REQUIRED=6`: cantidad de frames seguidos para disparar pelea
-- `CROWD_PERSON_THRESHOLD=6`: minimo de personas para aglomeracion
-- `SAVE_EVIDENCE=true`: guarda capturas
-
-Si luego usas el iPhone como stream IP o URL, cambia `CAMERA_SOURCE` por esa direccion o elige la opcion manual al iniciar.
-
-## Ejecutar
-
-```powershell
-python app\main.py
-```
-
-Importante: haz esto desde `Anaconda Prompt` o desde una terminal donde `conda` ya funcione. En una terminal normal de Windows, `python` puede apuntar al alias de Microsoft Store y no al entorno real.
-
-## Selector de camara
-
-Al iniciar, el sistema escanea las camaras locales y muestra un selector simple en terminal.
-
-Opciones:
-
-- elegir una camara local detectada
-- presionar `Enter` para usar la fuente por defecto del `.env`
-- escribir `M` para ingresar manualmente una fuente de video
-
-La fuente manual puede ser:
-
-- un indice, por ejemplo `1`
-- una URL RTSP de una camara IP
-- una URL HTTP/MJPEG si el dispositivo la ofrece
-
-## Como conectar el iPhone al sistema
-
-Para el prototipo tienes tres caminos practicos:
-
-1. Usarlo como webcam del sistema.
-   Si Windows lo reconoce como camara, el selector lo mostrara como una camara local.
-
-2. Usarlo como camara IP dentro de tu red Wi-Fi.
-   En ese caso, la aplicacion del telefono te dara una URL y la pegas en la opcion manual del selector.
-
-3. Usarlo como stream RTSP.
-   Esta es la opcion mas parecida a una camara de videovigilancia real, porque a futuro muchas camaras IP profesionales entregan RTSP.
-
-### Usar Camo
-
-Si ya instalaste Camo en el iPhone y en la laptop:
-
-1. Abre Camo en el iPhone.
-2. Abre Camo Studio en la laptop.
-3. Conecta el iPhone por USB o con el metodo que Camo te habilite.
-4. Verifica en Camo Studio que ya ves la imagen del telefono.
-5. Cierra aplicaciones que puedan estar ocupando esa camara virtual.
-6. Ejecuta `python app\main.py`.
-7. En el selector, prueba una de las camaras locales detectadas hasta encontrar la de Camo.
-
-Como el selector actual muestra indices y no nombres del driver, la camara de Camo normalmente aparecera como otra camara local, por ejemplo `1` o `2`.
-
-Si no aparece:
-
-- deja abierto Camo Studio antes de correr Python
-- desconecta otras apps de videollamada
-- prueba subir `CAMERA_SCAN_LIMIT` a `8`
-- en ultimo caso, usa `M` y escribe un indice manual como `1`, `2` o `3`
-
-Recomendacion para tu proyecto:
-
-- hoy: usa webcam o iPhone como stream
-- despues: migra a camara IP/RTSP
-- futuro final: integra camaras de videovigilancia con RTSP/ONVIF y nombres por ubicacion
-
-## Como se conectaria una camara de videovigilancia a futuro
-
-Lo normal en una camara profesional es:
-
-- la camara transmite RTSP
-- tu sistema toma esa URL como fuente
-- a cada camara se le asigna una ubicacion, por ejemplo `Biblioteca Norte` o `Laboratorio 3`
-- las alertas se guardan con `fecha`, `hora`, `camara`, `ubicacion` y `tipo de evento`
-
-Ejemplo de fuente futura:
+Valores principales:
 
 ```text
-rtsp://usuario:clave@192.168.1.50:554/stream1
+CAMERA_SOURCE=0
+CAMERA_WIDTH=960
+CAMERA_HEIGHT=540
+CAMERA_FPS=30
+MODEL_PATH=yolov8n.pt
+YOLO_CLASSES=0
+FIGHT_MODEL_PATH=models/fight/best.pt
+INFERENCE_DEVICE=auto
+INFERENCE_IMAGE_SIZE=640
+DETECTION_INTERVAL=2
+ENABLED_EVENTS=fight,crowd,fallen_person
 ```
 
-## Controles
+Sobre `INFERENCE_DEVICE`:
+
+- `auto`: usa GPU si PyTorch detecta CUDA, si no usa CPU.
+- `0`: fuerza la primera GPU NVIDIA.
+- `cpu`: fuerza CPU.
+
+Recomendacion para el equipo:
+
+```text
+INFERENCE_DEVICE=auto
+```
+
+Asi el proyecto se adapta a cada laptop.
+
+## Verificar GPU
+
+Para saber si PyTorch esta usando la GPU:
+
+```powershell
+python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+```
+
+Si devuelve `True`, el sistema puede usar la GPU.
+
+Si devuelve `False`, el sistema sigue funcionando en CPU, pero con menos FPS.
+
+## Ejecutar el sistema completo
+
+Forma rapida:
+
+```powershell
+.\scripts\dev-web.ps1
+```
+
+Esto abre dos terminales:
+
+- una para la API Python
+- otra para el dashboard Next.js
+
+Luego abrir:
+
+```text
+http://localhost:3000
+```
+
+Forma manual:
+
+Terminal 1: backend Python con camara e IA.
+
+```powershell
+cd C:\Users\Unknown\Documents\GitHub\ia-vigilancia
+.\venv\Scripts\python.exe -m uvicorn server:app --app-dir app --host 127.0.0.1 --port 8000
+```
+
+Terminal 2: dashboard web.
+
+```powershell
+cd C:\Users\Unknown\Documents\GitHub\ia-vigilancia\dashboard
+bun install
+bun run dev
+```
+
+Abrir:
+
+```text
+http://localhost:3000
+```
+
+API:
+
+```text
+http://localhost:8000/api/health
+http://localhost:8000/api/cameras
+http://localhost:8000/video_feed
+```
+
+## Ejecutar sin web
+
+Para desarrollo rapido, sin Next.js ni navegador:
+
+```powershell
+.\scripts\dev-camera.ps1
+```
+
+Esto abre la camara en una ventana de OpenCV.
+
+Controles:
 
 - `q`: salir
 - `ESC`: salir
 - `Ctrl+C`: detener desde terminal
 
-Nota: si `Ctrl+C` no responde, haz clic primero en la terminal y vuelve a intentarlo. Si la ventana de video tiene el foco, usa `q` o `ESC`.
+## Selector de camara
 
-## Por que antes detectaba mal
+El dashboard tiene un selector de camaras.
 
-El script anterior mostraba muchas clases con configuracion por defecto. Eso genera ruido visual y falsas detecciones aparentes.
+Desde la web se puede:
 
-En esta version:
+- escanear camaras locales
+- seleccionar una camara detectada
+- escribir manualmente un indice, por ejemplo `0`, `1` o `2`
+- escribir una URL RTSP/HTTP para camaras IP futuras
 
-- se usa un umbral de confianza configurable
-- se limita por defecto a la clase `0`, que en YOLO corresponde a `person`
-- se separa la configuracion del codigo para poder ajustar el comportamiento sin reescribir el script
+Para Camo:
 
-## Siguientes pasos recomendados
+1. Abrir Camo en el telefono.
+2. Abrir Camo Studio en la laptop.
+3. Confirmar que se ve la imagen en Camo Studio.
+4. Ejecutar backend y dashboard.
+5. En el dashboard, presionar `Escanear`.
+6. Probar camaras `0`, `1`, `2` hasta encontrar Camo.
 
-1. Validar que funcione estable con webcam.
-2. Conectar el iPhone como fuente de video.
-3. Agregar identificador de camara y ubicacion.
-4. Registrar eventos en un archivo `.csv` o base de datos.
-5. Enviar alertas basicas por correo, Telegram o WhatsApp.
-6. Pasar de deteccion de personas a deteccion de conductas o acciones.
+## Rendimiento y FPS
 
-## Idea de MVP
+Configuracion recomendada:
 
-Un MVP realista para presentar seria:
+```text
+CAMERA_WIDTH=960
+CAMERA_HEIGHT=540
+CAMERA_FPS=30
+INFERENCE_DEVICE=auto
+INFERENCE_IMAGE_SIZE=640
+DETECTION_INTERVAL=2
+STREAM_JPEG_QUALITY=75
+```
 
-- detectar personas
-- identificar presencia en zonas restringidas
-- guardar evidencia del evento
-- mostrar hora y camara
-- emitir una alerta automatica simple
+Si va lento:
 
-Eso ya demuestra valor sin entrar todavia en el problema mas dificil, que es detectar peleas en video.
+```text
+DETECTION_INTERVAL=3
+INFERENCE_IMAGE_SIZE=512
+CAMERA_WIDTH=640
+CAMERA_HEIGHT=360
+```
 
-## Catalogo de eventos objetivo
+`DETECTION_INTERVAL=2` significa que el sistema no ejecuta IA en todos los frames, sino cada 2 frames. Esto mejora FPS y reduce carga.
 
-El proyecto ya incluye un catalogo interno de eventos objetivo en `app/event_catalog.py`. Ese archivo modela prioridades y estrategia de deteccion para eventos como:
+La web mantiene la ultima imagen anotada entre detecciones para evitar que las cajas parpadeen. Si quieres maxima precision visual frame por frame, usa:
 
-- pelea
-- arma de fuego
-- cuchillo
-- humo
-- fuego
-- persona inconsciente
-- intrusion
-- merodeo
-- vandalismo
-- aglomeracion
+```text
+DETECTION_INTERVAL=1
+```
 
-Esto no significa que todos esos eventos ya se detecten hoy. Significa que la arquitectura ya esta preparada para crecer hacia ese objetivo.
+Si quieres mas FPS, usa `2` o `3`.
 
-## Evidencia por evento
+## Modelos
 
-La evidencia ya no se guarda por cualquier deteccion de persona.
+El modelo base:
 
-Ahora se guarda por carpeta segun el evento detectado:
+```text
+yolov8n.pt
+```
 
-- `evidence/fight/`
-- `evidence/crowd/`
-- `evidence/fallen_person/`
+Detecta objetos generales. Por defecto se usa solo la clase `person` con:
 
-Esto reduce mucho el ruido respecto al comportamiento anterior.
+```text
+YOLO_CLASSES=0
+```
 
-## Estado real de la deteccion de peleas
+El modelo de pelea:
 
-El proyecto ahora puede usar `models/fight/best.pt` como segundo modelo YOLO sobre la misma camara. En este modelo las clases son `non_violence` y `violence`. Si detecta `violence`, se genera el evento `fight`, se dibuja la caja en celeste y se guarda evidencia. Si detecta `non_violence`, no se dibuja esa caja y no se dispara alerta de pelea.
+```text
+models/fight/best.pt
+```
 
-Si `FIGHT_MODEL_PATH` esta vacio o el archivo no existe, la deteccion de `fight` vuelve a la heuristica inicial. Esa heuristica busca:
+Si detecta `violence`, el sistema crea un evento `fight`.
 
-- dos o mas personas cercanas
-- movimiento brusco sostenido durante varios frames
+Si detecta `non_violence`, no genera alerta.
 
-Sirve para experimentar, pero tendra falsos positivos y falsos negativos.
+## Entrenamiento
 
-Para hacerlo bien, el camino correcto es por fases:
+La guia detallada esta en:
 
-1. Deteccion de personas y tracking.
-2. Recoleccion de clips de ejemplo reales o datasets etiquetados.
-3. Modelo de accion para `fight/aggression/running/climbing`.
-4. Reglas de contexto por zona, horario y permanencia.
-5. Alertas y almacenamiento de clips, no solo snapshots.
+```text
+docs/training-guide.md
+```
 
-## Recomendacion tecnica clave
+Resumen:
 
-Para detectar bien eventos complejos como pelea, robo, intrusiones o merodeo no basta con YOLO.
+- objetos como cuchillo, humo o fuego se entrenan con fotos etiquetadas con cajas
+- acciones como pelea o agresion se entrenan mejor con videos
+- para esta fase se puede convertir video a frames y entrenar YOLO
+- a futuro, lo ideal para acciones es usar modelos temporales con clips
 
-Necesitaras combinar:
+## Que no se sube a Git
 
-- deteccion de objetos
-- deteccion de acciones
-- tracking de personas
-- contexto temporal entre varios frames
-- reglas de negocio por zona y horario
+El `.gitignore` evita subir archivos pesados o generados:
 
-Ejemplo:
+- `venv/`
+- `dashboard/node_modules/`
+- `dashboard/.next/`
+- `evidence/`
+- `runs/`
+- `videos/`
+- `test_outputs/`
+- `*.pt`
+- `*.onnx`
+- `*.engine`
 
-- `running` solo no implica riesgo
-- `running + crowd + direccion de escape` puede indicar estampida
-- `two persons + forceful motion + close contact over time` puede indicar pelea
+Esto no impide ejecutar el proyecto. Las dependencias se reinstalan con `pip install -r requirements.txt` y `bun install`.
+
+Los modelos `.pt` no se suben por Git normal porque pueden pesar mucho. Si el equipo necesita compartir modelos, usar una de estas opciones:
+
+- Google Drive
+- OneDrive
+- Hugging Face
+- Git LFS
+
+## Limitaciones actuales
+
+Este es un prototipo, no un sistema final.
+
+Limitaciones:
+
+- la deteccion de peleas depende de la calidad del modelo `best.pt`
+- puede haber falsos positivos
+- `fallen_person` todavia requiere mejor modelo o pose estimation
+- no hay autenticacion en el dashboard
+- no se guardan clips de video, solo evidencia basica
+- no hay base de datos historica todavia
+
+## Siguientes pasos
+
+Mejoras recomendadas:
+
+- guardar clips antes y despues de cada evento
+- agregar tracking de personas
+- entrenar mejor el modelo de pelea con datos propios
+- agregar modelos de fuego, humo y cuchillo
+- registrar eventos en base de datos
+- enviar alertas a SAE
+- agregar ubicacion real por camara
+
+## Para exposicion
+
+Mensaje clave:
+
+El proyecto demuestra que una camara comun puede conectarse a un sistema de IA que analiza video en tiempo real, detecta eventos relevantes y los muestra en un dashboard. La version actual es un avance funcional orientado a validar la arquitectura antes de escalar a camaras profesionales y modelos mas especializados.
