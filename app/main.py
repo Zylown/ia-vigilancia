@@ -18,6 +18,8 @@ def main() -> None:
         model_path=settings.model_path,
         confidence_threshold=settings.confidence_threshold,
         tracked_classes=settings.tracked_classes,
+        fight_model_path=settings.fight_model_path,
+        fight_confidence_threshold=settings.fight_confidence_threshold,
     )
     event_engine = EventEngine(
         enabled_events=settings.enabled_events,
@@ -43,6 +45,7 @@ def main() -> None:
     print(
         f"Fuente: {selected_camera.label} | "
         f"Modelo: {settings.model_path} | "
+        f"Modelo pelea: {settings.fight_model_path or 'desactivado'} | "
         f"Confianza minima: {settings.confidence_threshold:.2f} | "
         f"Clases: {settings.tracked_classes or 'todas'}"
     )

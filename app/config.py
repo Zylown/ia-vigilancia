@@ -22,6 +22,8 @@ class Settings:
     model_path: str
     confidence_threshold: float
     tracked_classes: list[int] | None
+    fight_model_path: str | None
+    fight_confidence_threshold: float
     enabled_events: list[str]
     fight_motion_threshold: float
     fight_frames_required: int
@@ -37,6 +39,7 @@ class Settings:
         tracked_classes = _parse_int_list(raw_classes) if raw_classes else None
         raw_events = os.getenv("ENABLED_EVENTS", "fight,crowd,fallen_person").strip()
         enabled_events = [item.strip() for item in raw_events.split(",") if item.strip()]
+        fight_model_path = os.getenv("FIGHT_MODEL_PATH", "models/fight/best.pt").strip()
 
         return cls(
             camera_source=os.getenv("CAMERA_SOURCE", "0"),
@@ -45,6 +48,8 @@ class Settings:
             model_path=os.getenv("MODEL_PATH", "yolov8n.pt"),
             confidence_threshold=float(os.getenv("CONFIDENCE_THRESHOLD", "0.55")),
             tracked_classes=tracked_classes,
+            fight_model_path=fight_model_path or None,
+            fight_confidence_threshold=float(os.getenv("FIGHT_CONFIDENCE_THRESHOLD", "0.45")),
             enabled_events=enabled_events,
             fight_motion_threshold=float(os.getenv("FIGHT_MOTION_THRESHOLD", "18.0")),
             fight_frames_required=int(os.getenv("FIGHT_FRAMES_REQUIRED", "6")),

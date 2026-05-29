@@ -77,7 +77,9 @@ Variables importantes:
 - `CAMERA_SCAN_LIMIT=5`: cantidad de indices locales a escanear
 - `MODEL_PATH=yolov8n.pt`: ruta al modelo
 - `CONFIDENCE_THRESHOLD=0.55`: sube este valor si detecta demasiado "a lo loco"
-- `YOLO_CLASSES=0`: detecta solo personas
+- `YOLO_CLASSES=0`: detecta solo personas. Dejalo vacio para detectar todas las clases generales del YOLO base
+- `FIGHT_MODEL_PATH=models/fight/best.pt`: modelo entrenado para detectar peleas. Dejalo vacio para desactivarlo
+- `FIGHT_CONFIDENCE_THRESHOLD=0.45`: confianza minima del modelo de peleas
 - `ENABLED_EVENTS=fight,crowd,fallen_person`: eventos basicos activos
 - `FIGHT_MOTION_THRESHOLD=18.0`: sensibilidad de movimiento para pelea
 - `FIGHT_FRAMES_REQUIRED=6`: cantidad de frames seguidos para disparar pelea
@@ -235,7 +237,9 @@ Esto reduce mucho el ruido respecto al comportamiento anterior.
 
 ## Estado real de la deteccion de peleas
 
-La deteccion de `fight` que se agrego ahora es una heuristica inicial, no un detector entrenado. Busca:
+El proyecto ahora puede usar `models/fight/best.pt` como segundo modelo YOLO sobre la misma camara. En este modelo las clases son `non_violence` y `violence`. Si detecta `violence`, se genera el evento `fight`, se dibuja la caja en celeste y se guarda evidencia. Si detecta `non_violence`, no se dibuja esa caja y no se dispara alerta de pelea.
+
+Si `FIGHT_MODEL_PATH` esta vacio o el archivo no existe, la deteccion de `fight` vuelve a la heuristica inicial. Esa heuristica busca:
 
 - dos o mas personas cercanas
 - movimiento brusco sostenido durante varios frames

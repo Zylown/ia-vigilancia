@@ -32,7 +32,11 @@ class EventEngine:
 
     def analyze(self, frame: cv2.typing.MatLike, summary: DetectionSummary) -> list[EventRecord]:
         events: list[EventRecord] = []
-        people = [detection for detection in summary.detections if detection.class_name == "person"]
+        people = [
+            detection
+            for detection in summary.detections
+            if detection.model_source == "base" and detection.class_name == "person"
+        ]
 
         if "crowd" in self.enabled_events and len(people) >= self.crowd_person_threshold:
             events.append(
@@ -59,12 +63,57 @@ class EventEngine:
                 )
 
         if "fight" in self.enabled_events:
-            fight_event = self._detect_possible_fight(frame, people)
+            fight_event = self._detect_fight_model(summary)
+            if fight_event is None and not summary.fight_model_enabled:
+                fight_event = self._detect_possible_fight(frame, people)
             if fight_event is not None:
                 events.append(fight_event)
 
         self.previous_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         return events
+
+    def _detect_fight_model(self, summary: DetectionSummary) -> EventRecord | None:
+        fight_detections = [
+            detection
+            for detection in summary.detections
+            if detection.model_source == "fight" and self._is_positive_fight_label(detection.class_name)
+        ]
+
+        if not fight_detections:
+            return None
+
+        best_detection = max(fight_detections, key=lambda detection: detection.confidence)
+        return EventRecord(
+            code="fight",
+            title="Pelea detectada",
+            priority="alta",
+            detail=(
+                f"Modelo entrenado detecto {best_detection.class_name} "
+                f"con confianza {best_detection.confidence:.2f}"
+            ),
+        )
+
+    def _is_positive_fight_label(self, class_name: str) -> bool:
+        normalized_name = class_name.lower().replace("_", " ").replace("-", " ")
+        negative_terms = (
+            "no fight",
+            "non fight",
+            "no violence",
+            "non violence",
+            "no violent",
+            "non violent",
+            "normal",
+            "no pelea",
+            "sin pelea",
+            "no violencia",
+            "sin violencia",
+        )
+
+        if any(term in normalized_name for term in negative_terms):
+            return False
+
+        positive_terms = ("fight", "violence", "violent", "pelea", "agresion", "aggression")
+        return any(term in normalized_name for term in positive_terms)
 
     def _looks_fallen(self, person: DetectionBox, frame_width: int, frame_height: int) -> bool:
         if person.area < 18_000:
